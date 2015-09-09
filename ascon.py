@@ -10,52 +10,52 @@ debugpermutation = False
 
 # === Ascon encryption and decryption ===
 
-def ascon_encrypt(key, nonce, associateddata, plaintext): 
+def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128"): 
     """
     Ascon encryption.
-    key: a bytes object of size 12 or 16 (for 96- or 128-bit security)
-    nonce: a bytes object of same size as key (must not repeat for the same key!)
+    key: a bytes object of size 16 (for 128-bit security)
+    nonce: a bytes object of size 16 (must not repeat for the same key!)
     associateddata: a bytes object of arbitrary length
     plaintext: a bytes object of arbitrary length
+    variant: "Ascon-128" or "Ascon-128a" (specifies rate and number of rounds)
     returns a bytes object containing the ciphertext and tag
     """
-    assert(len(key) in [12, 16])
-    assert(len(nonce) == len(key))
+    assert(len(key) == 16 and len(nonce) == 16)
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8   # bits
     a = 12   # rounds
-    b = 6 if k == 128 else 8   # rounds
-    rate = 8 if k == 128 else 16   # bytes
+    b = 6 if variant == "Ascon-128" else 8   # rounds
+    rate = 8 if variant == "Ascon-128" else 16   # bytes
 
-    ascon_initialize(S, k, a, b, key, nonce)
+    ascon_initialize(S, k, rate, a, b, key, nonce)
     ascon_process_associated_data(S, b, rate, associateddata)
     ciphertext = ascon_process_plaintext(S, b, rate, plaintext)
-    tag = ascon_finalize(S, a, key)
+    tag = ascon_finalize(S, rate, a, key)
     return ciphertext + tag
 
 
-def ascon_decrypt(key, nonce, associateddata, ciphertext):
+def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-128"):
     """
     Ascon decryption.
-    key: a bytes object of size 12 or 16 (for 96- or 128-bit security)
-    nonce: a bytes object of same size as key (must not repeat for the same key!)
+    key: a bytes object of size 16 (for 128-bit security)
+    nonce: a bytes object of size 16 (must not repeat for the same key!)
     associateddata: a bytes object of arbitrary length
     ciphertext: a bytes object of arbitrary length (also contains tag)
+    variant: "Ascon-128" or "Ascon-128a" (specifies rate and number of rounds)
     returns a bytes object containing the plaintext or None if verification fails
     """
-    assert(len(key) in [12, 16])
-    assert(len(key) == len(nonce))
+    assert(len(key) == 16 and len(nonce) == 16)
     assert(len(ciphertext) >= len(key))
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8 # bits
     a = 12 # rounds
-    b = 6 if k == 128 else 8  # rounds
-    rate = 8 if k == 128 else 16 # bytes
+    b = 6 if variant == "Ascon-128" else 8  # rounds
+    rate = 8 if variant == "Ascon-128" else 16 # bytes
 
-    ascon_initialize(S, k, a, b, key, nonce)
+    ascon_initialize(S, k, rate, a, b, key, nonce)
     ascon_process_associated_data(S, b, rate, associateddata)
     plaintext = ascon_process_ciphertext(S, b, rate, ciphertext[:-len(key)])
-    tag = ascon_finalize(S, a, key)
+    tag = ascon_finalize(S, rate, a, key)
     if tag == ciphertext[-len(key):]:
         return plaintext
     else:
@@ -64,20 +64,21 @@ def ascon_decrypt(key, nonce, associateddata, ciphertext):
 
 # === Ascon building blocks ===
 
-def ascon_initialize(S, k, a, b, key, nonce):
+def ascon_initialize(S, k, rate, a, b, key, nonce):
     """
     Ascon initialization phase. 
     S: Ascon state, a list of 5 64-bit integers
     k: key size in bits
+    rate: block size in bytes (8 for Ascon-128, 16 for Ascon-128a)
     a: number of initialization/finalization rounds for permutation
     b: number of intermediate rounds for permutation
-    key: a bytes object of size 12 or 16 (for 96- or 128-bit security)
-    nonce: a bytes object of same size as key
+    key: a bytes object of size 16 (for 128-bit security)
+    nonce: a bytes object of size 16
     returns nothing, updates S
     """
     zero_key_nonce = zero_bytes(32-len(key)-len(nonce)) + key + nonce
     zero_key = zero_bytes(16-len(key)) + key
-    S[0] = bytes_to_int(to_bytes([k, a, b, 0, 0, 0, 0, 0]))
+    S[0] = bytes_to_int(to_bytes([k, rate, a, b, 0, 0, 0, 0]))
     S[1] = bytes_to_int(zero_key_nonce[0:8])
     S[2] = bytes_to_int(zero_key_nonce[8:16])
     S[3] = bytes_to_int(zero_key_nonce[16:24])
@@ -96,7 +97,7 @@ def ascon_process_associated_data(S, b, rate, associateddata):
     Ascon associated data processing phase. 
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
-    rate: block size in bytes (8 for 128-bit security, 16 for 96-bit security)
+    rate: block size in bytes (8 for Ascon-128, 16 for Ascon-128a)
     associateddata: a bytes object of arbitrary length
     returns nothing, updates S
     """
@@ -121,7 +122,7 @@ def ascon_process_plaintext(S, b, rate, plaintext):
     Ascon plaintext processing phase (during encryption). 
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
-    rate: block size in bytes (8 for 128-bit security, 16 for 96-bit security)
+    rate: block size in bytes (8 for Ascon-128, 16 for Ascon-128a)
     plaintext: a bytes object of arbitrary length
     returns the ciphertext (without tag), updates S
     """
@@ -160,7 +161,7 @@ def ascon_process_ciphertext(S, b, rate, ciphertext):
     Ascon ciphertext processing phase (during decryption). 
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
-    rate: block size in bytes (8 for 128-bit security, 16 for 96-bit security)
+    rate: block size in bytes (8 for Ascon-128, 16 for Ascon-128a)
     ciphertext: a bytes object of arbitrary length
     returns the plaintext, updates S
     """
@@ -205,31 +206,24 @@ def ascon_process_ciphertext(S, b, rate, ciphertext):
     return plaintext
 
 
-def ascon_finalize(S, a, key):
+def ascon_finalize(S, rate, a, key):
     """
     Ascon finalization phase.
     S: Ascon state, a list of 5 64-bit integers
+    rate: block size in bytes (8 for Ascon-128, 16 for Ascon-128a)
     a: number of initialization/finalization rounds for permutation
-    key: a bytes object of size 12 or 16 (for 96- or 128-bit security)
+    key: a bytes object of size 16 (for 128-bit security)
     returns the tag, updates S
     """
-    if len(key) == 12:
-        S[2] ^= bytes_to_int(key[0:8])
-        S[3] ^= bytes_to_int(key[8:12] + to_bytes([0, 0, 0, 0]))
-    elif len(key) == 16:
-        S[1] ^= bytes_to_int(key[0:8])
-        S[2] ^= bytes_to_int(key[8:16])
+    assert(len(key) == 16)
+    S[rate/8+0] ^= bytes_to_int(key[0:8])
+    S[rate/8+1] ^= bytes_to_int(key[8:16])
 
     ascon_permutation(S, a)
 
-    if len(key) == 12:
-        S[3] ^= bytes_to_int(key[0:4])
-        S[4] ^= bytes_to_int(key[4:12])
-        tag = int_to_bytes(S[3], 4) + int_to_bytes(S[4], 8)
-    elif len(key) == 16:
-        S[3] ^= bytes_to_int(key[0:8])
-        S[4] ^= bytes_to_int(key[8:16])
-        tag = int_to_bytes(S[3], 8) + int_to_bytes(S[4], 8)
+    S[3] ^= bytes_to_int(key[0:8])
+    S[4] ^= bytes_to_int(key[8:16])
+    tag = int_to_bytes(S[3], 8) + int_to_bytes(S[4], 8)
     if debug: printstate(S, "finalization:")
     return tag
 
@@ -304,8 +298,9 @@ def printwords(S, description=""):
 # === some demo if called directly ===
 
 if __name__ == "__main__":
+    variant = "Ascon-128"  # or "Ascon-128a"
     keysize = 16
-    print "=== demo encryption using Ascon{bitsize} ===".format(bitsize=keysize*8)
+    print "=== demo encryption using {variant} ===".format(variant=variant)
 
     key = zero_bytes(keysize)
     nonce = zero_bytes(keysize)
@@ -314,8 +309,8 @@ if __name__ == "__main__":
     associateddata = b"ASCON"
     plaintext = b"ascon"
 
-    ciphertext = ascon_encrypt(key, nonce, associateddata, plaintext)
-    receivedplaintext = ascon_decrypt(key, nonce, associateddata, ciphertext)
+    ciphertext = ascon_encrypt(key, nonce, associateddata, plaintext, variant)
+    receivedplaintext = ascon_decrypt(key, nonce, associateddata, ciphertext, variant)
 
     if receivedplaintext == None: 
         print "verification failed!"
