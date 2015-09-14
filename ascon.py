@@ -78,7 +78,7 @@ def ascon_initialize(S, k, rate, a, b, key, nonce):
     """
     zero_key_nonce = zero_bytes(32-len(key)-len(nonce)) + key + nonce
     zero_key = zero_bytes(16-len(key)) + key
-    S[0] = bytes_to_int(to_bytes([k, rate, a, b, 0, 0, 0, 0]))
+    S[0] = bytes_to_int(to_bytes([k, rate * 8, a, b, 0, 0, 0, 0]))
     S[1] = bytes_to_int(zero_key_nonce[0:8])
     S[2] = bytes_to_int(zero_key_nonce[8:16])
     S[3] = bytes_to_int(zero_key_nonce[16:24])
