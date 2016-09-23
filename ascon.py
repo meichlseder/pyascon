@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Implementation of Ascon, an authenticated cipher
+Implementation of Ascon v1.2, an authenticated cipher
 http://ascon.iaik.tugraz.at/
 """
 
@@ -235,11 +235,11 @@ def ascon_permutation(S, rounds=1):
     rounds: number of rounds to perform
     returns nothing, updates S
     """
-    assert(rounds < 16)
+    assert(rounds <= 12)
     if debugpermutation: printwords(S, "permutation input:")
-    for i in range(rounds):
+    for r in range(12-rounds, 12):
         # --- add round constants ---
-        S[2] ^= (0xf0 - i*0x10 + i*0x1)
+        S[2] ^= (0xf0 - r*0x10 + r*0x1)
         if debugpermutation: printwords(S, "round constant addition:")
         # --- substitution layer ---
         S[0] ^= S[4]
