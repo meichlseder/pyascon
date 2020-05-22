@@ -382,5 +382,5 @@ def demo_hash(variant="Ascon-Hash", hashlength=32):
 
 
 if __name__ == "__main__":
-    demo_aead("Ascon-80pq")
+    demo_aead("Ascon-128")
     demo_hash("Ascon-Hash")
