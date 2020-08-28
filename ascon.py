@@ -41,7 +41,7 @@ def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-128"):
     nonce: a bytes object of size 16 (must not repeat for the same key!)
     associateddata: a bytes object of arbitrary length
     ciphertext: a bytes object of arbitrary length (also contains tag)
-    variant: "Ascon-128" or "Ascon-128a" (specifies rate and number of rounds)
+    variant: "Ascon-128", "Ascon-128a", or "Ascon-80pq" (specifies key size, rate and number of rounds)
     returns a bytes object containing the plaintext or None if verification fails
     """
     assert(len(nonce) == 16 and (len(key) == 16 or (len(key) == 20 and variant == "Ascon-80pq")))
@@ -66,7 +66,7 @@ def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-128"):
 
 def ascon_initialize(S, k, rate, a, b, key, nonce):
     """
-    Ascon initialization phase. 
+    Ascon initialization phase - internal helper function.
     S: Ascon state, a list of 5 64-bit integers
     k: key size in bits
     rate: block size in bytes (8 for Ascon-128, Ascon-80pq; 16 for Ascon-128a)
@@ -93,7 +93,7 @@ def ascon_initialize(S, k, rate, a, b, key, nonce):
 
 def ascon_process_associated_data(S, b, rate, associateddata):
     """
-    Ascon associated data processing phase. 
+    Ascon associated data processing phase - internal helper function.
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
     rate: block size in bytes (8 for Ascon-128, 16 for Ascon-128a)
@@ -118,7 +118,7 @@ def ascon_process_associated_data(S, b, rate, associateddata):
 
 def ascon_process_plaintext(S, b, rate, plaintext):
     """
-    Ascon plaintext processing phase (during encryption). 
+    Ascon plaintext processing phase (during encryption) - internal helper function.
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
     rate: block size in bytes (8 for Ascon-128, Ascon-80pq; 16 for Ascon-128a)
@@ -157,7 +157,7 @@ def ascon_process_plaintext(S, b, rate, plaintext):
 
 def ascon_process_ciphertext(S, b, rate, ciphertext):
     """
-    Ascon ciphertext processing phase (during decryption). 
+    Ascon ciphertext processing phase (during decryption) - internal helper function. 
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
     rate: block size in bytes (8 for Ascon-128, Ascon-80pq; 16 for Ascon-128a)
@@ -207,7 +207,7 @@ def ascon_process_ciphertext(S, b, rate, ciphertext):
 
 def ascon_finalize(S, rate, a, key):
     """
-    Ascon finalization phase.
+    Ascon finalization phase - internal helper function.
     S: Ascon state, a list of 5 64-bit integers
     rate: block size in bytes (8 for Ascon-128, Ascon-80pq; 16 for Ascon-128a)
     a: number of initialization/finalization rounds for permutation
@@ -234,9 +234,11 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     """
     Ascon hash function and Xof.
     message: a bytes object of arbitrary length
-    variant: "Ascon-Hash" or "Ascon-Xof" (specifies rate and number of rounds)
+    variant: "Ascon-Hash" (256-bit output for 128-bit security) or "Ascon-Xof" (arbitrary output length, security=min(128, bitlen/2))
+    hashlength: the requested output bytelength (must be 32 for variant "Ascon-Hash"; can be arbitrary for Ascon-Xof, but should be >= 32 for 128-bit security)
     returns a bytes object containing the hash tag
     """
+    if variant == "Ascon-Hash": assert(hashlength == 32)
     a = 12   # rounds
     rate = 8 # bytes
 
@@ -270,7 +272,7 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
 
 def ascon_permutation(S, rounds=1):
     """
-    Ascon core permutation for the sponge construction.
+    Ascon core permutation for the sponge construction - internal helper function.
     S: Ascon state, a list of 5 64-bit integers
     rounds: number of rounds to perform
     returns nothing, updates S
@@ -351,8 +353,9 @@ def demo_aead(variant):
     keysize = 20 if variant == "Ascon-80pq" else 16
     print("=== demo encryption using {variant} ===".format(variant=variant))
 
-    key   = zero_bytes(keysize) # get_random_bytes(keysize)
-    nonce = zero_bytes(16)      # get_random_bytes(16)
+    # choose a cryptographically strong random key and a nonce that never repeats for the same key:
+    key   = get_random_bytes(keysize) # zero_bytes(keysize)
+    nonce = get_random_bytes(16)      # zero_bytes(16)
     
     associateddata = b"ASCON"
     plaintext      = b"ascon"
