@@ -8,6 +8,46 @@ http://ascon.iaik.tugraz.at/
 debug = False
 debugpermutation = False
 
+# === Ascon hash/xof ===
+
+def ascon_hash(message, variant="Ascon-Hash", hashlength=32): 
+    """
+    Ascon hash function and extendable-output function.
+    message: a bytes object of arbitrary length
+    variant: "Ascon-Hash" (256-bit output for 128-bit security) or "Ascon-Xof" (arbitrary output length, security=min(128, bitlen/2))
+    hashlength: the requested output bytelength (must be 32 for variant "Ascon-Hash"; can be arbitrary for Ascon-Xof, but should be >= 32 for 128-bit security)
+    returns a bytes object containing the hash tag
+    """
+    if variant == "Ascon-Hash": assert(hashlength == 32)
+    a = 12   # rounds
+    rate = 8 # bytes
+
+    # Initialization
+    tagspec = int_to_bytes(256 if variant == "Ascon-Hash" else 0, 4)
+    S = bytes_to_state(to_bytes([0, rate * 8, a, 0]) + tagspec + zero_bytes(32))
+    if debug: printstate(S, "initial value:")
+
+    ascon_permutation(S, a)
+    if debug: printstate(S, "initialization:")
+
+    # Message Processing (Absorbing)
+    m_padding = to_bytes([0x80]) + zero_bytes(rate - (len(message) % rate) - 1)
+    m_padded = message + m_padding
+
+    for block in range(0, len(m_padded), rate):
+        S[0] ^= bytes_to_int(m_padded[block:block+8])  # rate=8
+        ascon_permutation(S, a)
+    if debug: printstate(S, "process message:")
+
+    # Finalization (Squeezing)
+    H = b""
+    while len(H) < hashlength:
+        H += int_to_bytes(S[0], 8)  # rate=8
+        ascon_permutation(S, a)
+    if debug: printstate(S, "finalization:")
+    return H[:hashlength]
+
+
 # === Ascon AEAD encryption and decryption ===
 
 def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128"): 
@@ -226,46 +266,6 @@ def ascon_finalize(S, rate, a, key):
     tag = int_to_bytes(S[3], 8) + int_to_bytes(S[4], 8)
     if debug: printstate(S, "finalization:")
     return tag
-
-
-# === Ascon hash/xof ===
-
-def ascon_hash(message, variant="Ascon-Hash", hashlength=32): 
-    """
-    Ascon hash function and Xof.
-    message: a bytes object of arbitrary length
-    variant: "Ascon-Hash" (256-bit output for 128-bit security) or "Ascon-Xof" (arbitrary output length, security=min(128, bitlen/2))
-    hashlength: the requested output bytelength (must be 32 for variant "Ascon-Hash"; can be arbitrary for Ascon-Xof, but should be >= 32 for 128-bit security)
-    returns a bytes object containing the hash tag
-    """
-    if variant == "Ascon-Hash": assert(hashlength == 32)
-    a = 12   # rounds
-    rate = 8 # bytes
-
-    # Initialization
-    tagspec = int_to_bytes(256 if variant == "Ascon-Hash" else 0, 4)
-    S = bytes_to_state(to_bytes([0, rate * 8, a, 0]) + tagspec + zero_bytes(32))
-    if debug: printstate(S, "initial value:")
-
-    ascon_permutation(S, a)
-    if debug: printstate(S, "initialization:")
-
-    # Message Processing (Absorbing)
-    m_padding = to_bytes([0x80]) + zero_bytes(rate - (len(message) % rate) - 1)
-    m_padded = message + m_padding
-
-    for block in range(0, len(m_padded), rate):
-        S[0] ^= bytes_to_int(m_padded[block:block+8])  # rate=8
-        ascon_permutation(S, a)
-    if debug: printstate(S, "process message:")
-
-    # Finalization (Squeezing)
-    H = b""
-    while len(H) < hashlength:
-        H += int_to_bytes(S[0], 8)  # rate=8
-        ascon_permutation(S, a)
-    if debug: printstate(S, "finalization:")
-    return H[:hashlength]
 
 
 # === Ascon permutation ===
