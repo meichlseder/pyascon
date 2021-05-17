@@ -29,16 +29,18 @@ This is a simple reference implementation of Ascon v1.2 as submitted to the NIST
     - `Ascon-128a`
     - `Ascon-80pq`
   
-  * Two hashing algorithms: h function variants with fixed or extendable output lengths 
+  * Four hashing algorithms: hash function variants with fixed 256-bit (`Hash`) or variable (`Xof`) output lengths 
 
-    - `Ascon-Hash`: Hash function with fixed output length of 256 bits
-    - `Ascon-Xof`: eXtendable Output Function with arbitrary output length
+    - `Ascon-Hash`
+    - `Ascon-Hasha`
+    - `Ascon-Xof`
+    - `Ascon-Xofa`
 
 Files
 -----
 
   * `ascon.py`: 
-    Implements the five family members as well as the underlying permutation:
+    Implements the seven family members as well as the underlying permutation:
 
     - `ascon_encryption()`/`ascon_decrypt()` for authenticated encryption,
     - `ascon_hash()` for hashing,
