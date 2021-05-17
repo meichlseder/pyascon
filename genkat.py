@@ -62,7 +62,7 @@ def kat_hash(variant="Ascon-Hash"):
     MAX_MESSAGE_LENGTH = 1024
     hlen = 32  # =CRYPTO_BYTES
     filename = "LWC_HASH_KAT_{hlenbits}.txt".format(hlenbits=hlen*8)
-    assert variant in ["Ascon-Xof", "Ascon-Hash"]
+    assert variant in ["Ascon-Xof", "Ascon-Xofa", "Ascon-Hash", "Ascon-Hasha"]
 
     msg = kat_bytes(MAX_MESSAGE_LENGTH)
     with open(filename, "w") as fp:
@@ -78,7 +78,7 @@ def kat_hash(variant="Ascon-Hash"):
 
 def kat(variant):
     aead_variants = ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
-    hash_variants = ["Ascon-Hash", "Ascon-Xof"]
+    hash_variants = ["Ascon-Hash", "Ascon-Hasha", "Ascon-Xof", "Ascon-Xofa"]
     assert variant in aead_variants + hash_variants
     kat_fun = kat_aead if variant in aead_variants else kat_hash
     kat_fun(variant)

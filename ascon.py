@@ -14,17 +14,19 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     """
     Ascon hash function and extendable-output function.
     message: a bytes object of arbitrary length
-    variant: "Ascon-Hash" (256-bit output for 128-bit security) or "Ascon-Xof" (arbitrary output length, security=min(128, bitlen/2))
+    variant: "Ascon-Hash", "Ascon-Hasha" (both with 256-bit output for 128-bit security), "Ascon-Xof", or "Ascon-Xofa" (both with arbitrary output length, security=min(128, bitlen/2))
     hashlength: the requested output bytelength (must be 32 for variant "Ascon-Hash"; can be arbitrary for Ascon-Xof, but should be >= 32 for 128-bit security)
     returns a bytes object containing the hash tag
     """
-    if variant == "Ascon-Hash": assert(hashlength == 32)
+    assert variant in ["Ascon-Hash", "Ascon-Hasha", "Ascon-Xof", "Ascon-Xofa"]
+    if variant in ["Ascon-Hash", "Ascon-Hasha"]: assert(hashlength == 32)
     a = 12   # rounds
+    b = 8 if variant in ["Ascon-Hasha", "Ascon-Xofa"] else 12
     rate = 8 # bytes
 
     # Initialization
-    tagspec = int_to_bytes(256 if variant == "Ascon-Hash" else 0, 4)
-    S = bytes_to_state(to_bytes([0, rate * 8, a, 0]) + tagspec + zero_bytes(32))
+    tagspec = int_to_bytes(256 if variant in ["Ascon-Hash", "Ascon-Hasha"] else 0, 4)
+    S = bytes_to_state(to_bytes([0, rate * 8, a, a-b]) + tagspec + zero_bytes(32))
     if debug: printstate(S, "initial value:")
 
     ascon_permutation(S, a)
@@ -34,16 +36,21 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     m_padding = to_bytes([0x80]) + zero_bytes(rate - (len(message) % rate) - 1)
     m_padded = message + m_padding
 
-    for block in range(0, len(m_padded), rate):
+    # first s-1 blocks
+    for block in range(0, len(m_padded) - rate, rate):
         S[0] ^= bytes_to_int(m_padded[block:block+8])  # rate=8
-        ascon_permutation(S, a)
+        ascon_permutation(S, b)
+    # last block
+    block = len(m_padded) - rate
+    S[0] ^= bytes_to_int(m_padded[block:block+8])  # rate=8
     if debug: printstate(S, "process message:")
 
     # Finalization (Squeezing)
     H = b""
+    ascon_permutation(S, a)
     while len(H) < hashlength:
         H += int_to_bytes(S[0], 8)  # rate=8
-        ascon_permutation(S, a)
+        ascon_permutation(S, b)
     if debug: printstate(S, "finalization:")
     return H[:hashlength]
 
@@ -60,6 +67,7 @@ def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128"):
     variant: "Ascon-128", "Ascon-128a", or "Ascon-80pq" (specifies key size, rate and number of rounds)
     returns a bytes object of length len(plaintext)+16 containing the ciphertext and tag
     """
+    assert variant in ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
     assert(len(nonce) == 16 and (len(key) == 16 or (len(key) == 20 and variant == "Ascon-80pq")))
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8   # bits
@@ -84,6 +92,7 @@ def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-128"):
     variant: "Ascon-128", "Ascon-128a", or "Ascon-80pq" (specifies key size, rate and number of rounds)
     returns a bytes object containing the plaintext or None if verification fails
     """
+    assert variant in ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
     assert(len(nonce) == 16 and (len(key) == 16 or (len(key) == 20 and variant == "Ascon-80pq")))
     assert(len(ciphertext) >= 16)
     S = [0, 0, 0, 0, 0]
@@ -326,7 +335,7 @@ def int_to_bytes(integer, nbytes):
     return to_bytes([(integer >> ((nbytes - 1 - i) * 8)) % 256 for i in range(nbytes)])
 
 def rotr(val, r):
-    return ((val >> r) ^ (val << (64-r))) % (1 << 64)
+    return (val >> r) | ((val & (1<<r)-1) << (64-r))
 
 def bytes_to_hex(b):
     return b.hex()
@@ -375,7 +384,7 @@ def demo_aead(variant):
                ])
 
 def demo_hash(variant="Ascon-Hash", hashlength=32):
-    assert variant in ["Ascon-Xof", "Ascon-Hash"]
+    assert variant in ["Ascon-Xof", "Ascon-Hash", "Ascon-Xofa", "Ascon-Hasha"]
     print("=== demo hash using {variant} ===".format(variant=variant))
 
     message = b"ascon"
