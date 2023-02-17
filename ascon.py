@@ -266,7 +266,8 @@ def ascon_finalize(S, rate, a, key):
     assert(len(key) in [16,20])
     S[rate//8+0] ^= bytes_to_int(key[0:8])
     S[rate//8+1] ^= bytes_to_int(key[8:16])
-    S[rate//8+2] ^= bytes_to_int(key[16:])
+    p_key = key + zero_bytes(4)
+    S[rate//8+2] ^= bytes_to_int(p_key[16:])
 
     ascon_permutation(S, a)
 
