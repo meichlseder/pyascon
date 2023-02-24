@@ -55,7 +55,12 @@ Files
   * `genkat.py`:
     Produces result files for the Known Answer Tests (KATs) defined for the [NIST LWC competition](https://csrc.nist.gov/projects/lightweight-cryptography) ([call for algorithms](https://csrc.nist.gov/CSRC/media/Projects/Lightweight-Cryptography/documents/final-lwc-submission-requirements-august2018.pdf), [test vector generation code](https://csrc.nist.gov/CSRC/media/Projects/Lightweight-Cryptography/documents/TestVectorGen.zip)).
 
-    Call with the name of the target algorithm (see above) as first parameter, default is `Ascon-128`.
+    Call with the name of the target algorithm (see above) as first parameter, default is `Ascon-128`:
+
+    ```sh
+    python3 genkat.py Ascon-128
+
+    ```
 
     Results are written to 
 
