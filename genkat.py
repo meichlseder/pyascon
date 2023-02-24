@@ -8,6 +8,7 @@ import ascon
 import sys
 from writer import MultipleWriter
 
+
 def kat_bytes(length):
     return bytes(bytearray([i % 256 for i in range(length)]))
 
@@ -32,7 +33,7 @@ def kat_aead(variant):
         for mlen in range(MAX_MESSAGE_LENGTH+1):
             for adlen in range(MAX_ASSOCIATED_DATA_LENGTH+1):
                 w.open()
-                w.append("Count",count)
+                w.append("Count", count)
                 count += 1
                 w.append("Key", key, klen)
                 w.append("Nonce", nonce, nlen)
@@ -45,6 +46,7 @@ def kat_aead(variant):
                 assert len(msg2) == mlen
                 assert msg2 == msg[:mlen]
                 w.close()
+
 
 def kat_hash(variant="Ascon-Hash"):
     MAX_MESSAGE_LENGTH = 1024

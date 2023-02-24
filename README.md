@@ -11,7 +11,7 @@ Ascon
 Ascon is a family of [authenticated encryption](https://en.wikipedia.org/wiki/Authenticated_encryption) (AEAD) and [hashing](https://en.wikipedia.org/wiki/Cryptographic_hash_function) algorithms designed to be lightweight and easy to implement, even with added countermeasures against side-channel attacks.
 It was designed by a team of cryptographers from Graz University of Technology, Infineon Technologies, and Radboud University: Christoph Dobraunig, Maria Eichlseder, Florian Mendel, and Martin Schläffer.
 
-Ascon has been selected as the primary choice for lightweight authenticated encryption in the final portfolio of the [CAESAR competition (2014–2019)](https://competitions.cr.yp.to/caesar-submissions.html) and is currently competing in the [NIST Lightweight Cryptography competition (2019–)](https://csrc.nist.gov/projects/lightweight-cryptography). 
+Ascon has been selected as the standard for lightweight cryptography in the [NIST Lightweight Cryptography competition (2019–2023)](https://csrc.nist.gov/projects/lightweight-cryptography) and as the primary choice for lightweight authenticated encryption in the final portfolio of the [CAESAR competition (2014–2019)](https://competitions.cr.yp.to/caesar-submissions.html).
 
 Find more information, including the specification and more implementations here:
 
@@ -61,4 +61,10 @@ Files
 
     - `LWC_AEAD_KAT_{klenbits}_{nlenbits}.txt` for authenticated encryption,
     - `LWC_HASH_KAT_{hlenbits}.txt` for hashing.
+
+    Additionally, a JSON version of the same data is written to the corresponding `.json` files.
+
+
+  * `writer.py`:
+    Helper code for `genkat.py` that specifies the text and JSON encoding.
 
