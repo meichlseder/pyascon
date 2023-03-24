@@ -55,6 +55,84 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     return H[:hashlength]
 
 
+# === Ascon MAC/PRF ===
+
+def ascon_mac(key, message, variant="Ascon-Mac", taglength=16): 
+    """
+    Ascon message authentication code (MAC) and pseudorandom function (PRF).
+    key: a bytes object of size 16
+    message: a bytes object of arbitrary length (<= 16 for "Ascon-PrfShort")
+    variant: "Ascon-Mac", "Ascon-Maca" (both 128-bit output, arbitrarily long input), "Ascon-Prf", "Ascon-Prfa" (both arbitrarily long input and output), or "Ascon-PrfShort" (t-bit output for t<=128, m-bit input for m<=128)
+    taglength: the requested output bytelength l/8 (must be <=16 for variants "Ascon-Mac", "Ascon-Maca", and "Ascon-PrfShort", arbitrary for "Ascon-Prf", "Ascon-Prfa"; should be >= 16 for 128-bit security)
+    returns a bytes object containing the authentication tag
+    """
+    assert variant in ["Ascon-Mac", "Ascon-Prf", "Ascon-Maca", "Ascon-Prfa", "Ascon-PrfShort"]
+    if variant in ["Ascon-Mac", "Ascon-Maca"]: assert(len(key) == 16 and taglength <= 16)
+    if variant in ["Ascon-Prf", "Ascon-Prfa"]: assert(len(key) == 16)
+    if variant == "Ascon-PrfShort": assert(len(key) == 16 and taglength <= 16 and len(message) <= 16)
+    a = 12  # rounds
+    b = 8 if variant in ["Ascon-Prfa", "Ascon-Maca"] else 12  # rounds
+    msgblocksize = 40 if variant in ["Ascon-Prfa", "Ascon-Maca"] else 32 # bytes (input rate for Mac, Prf)
+    rate = 16 # bytes (output rate)
+
+    if variant == "Ascon-PrfShort":
+        # Initialization + Message Processing (Absorbing)
+        IV = to_bytes([len(key) * 8, len(message)*8, a + 64, taglength * 8]) + zero_bytes(4)
+        S = bytes_to_state(IV + key + message + zero_bytes(16 - len(message)))
+        if debug: printstate(S, "initial value:")
+
+        ascon_permutation(S, a)
+        if debug: printstate(S, "process message:")
+
+        # Finalization (Squeezing)
+        T = int_to_bytes(S[3] ^ bytes_to_int(key[0:8]), 8) + int_to_bytes(S[4] ^ bytes_to_int(key[8:16]), 8)
+        return T[:taglength]
+
+    else: # Ascon-Prf, Ascon-Prfa, Ascon-Mac, Ascon-Maca
+        # Initialization
+        if variant in ["Ascon-Mac", "Ascon-Maca"]: tagspec = int_to_bytes(16*8, 4)
+        if variant in ["Ascon-Prf", "Ascon-Prfa"]: tagspec = int_to_bytes(0*8, 4)
+        S = bytes_to_state(to_bytes([len(key) * 8, rate * 8, a + 128, a-b]) + tagspec + key + zero_bytes(16))
+        if debug: printstate(S, "initial value:")
+
+        ascon_permutation(S, a)
+        if debug: printstate(S, "initialization:")
+
+        # Message Processing (Absorbing)
+        m_padding = to_bytes([0x80]) + zero_bytes(msgblocksize - (len(message) % msgblocksize) - 1)
+        m_padded = message + m_padding
+
+        # first s-1 blocks
+        for block in range(0, len(m_padded) - msgblocksize, msgblocksize):
+            S[0] ^= bytes_to_int(m_padded[block:block+8])     # msgblocksize=32 bytes
+            S[1] ^= bytes_to_int(m_padded[block+8:block+16])
+            S[2] ^= bytes_to_int(m_padded[block+16:block+24])
+            S[3] ^= bytes_to_int(m_padded[block+24:block+32])
+            if variant in ["Ascon-Prfa", "Ascon-Maca"]:
+                S[4] ^= bytes_to_int(m_padded[block+32:block+40])
+            ascon_permutation(S, b)
+        # last block
+        block = len(m_padded) - msgblocksize
+        S[0] ^= bytes_to_int(m_padded[block:block+8])     # msgblocksize=32 bytes
+        S[1] ^= bytes_to_int(m_padded[block+8:block+16])
+        S[2] ^= bytes_to_int(m_padded[block+16:block+24])
+        S[3] ^= bytes_to_int(m_padded[block+24:block+32])
+        if variant in ["Ascon-Prfa", "Ascon-Maca"]:
+            S[4] ^= bytes_to_int(m_padded[block+32:block+40])
+        S[4] ^= 1
+        if debug: printstate(S, "process message:")
+
+        # Finalization (Squeezing)
+        T = b""
+        ascon_permutation(S, a)
+        while len(T) < taglength:
+            T += int_to_bytes(S[0], 8)  # rate=16
+            T += int_to_bytes(S[1], 8)
+            ascon_permutation(S, b)
+        if debug: printstate(S, "finalization:")
+        return T[:taglength]
+
+
 # === Ascon AEAD encryption and decryption ===
 
 def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128"): 
@@ -266,8 +344,7 @@ def ascon_finalize(S, rate, a, key):
     assert(len(key) in [16,20])
     S[rate//8+0] ^= bytes_to_int(key[0:8])
     S[rate//8+1] ^= bytes_to_int(key[8:16])
-    p_key = key + zero_bytes(4)
-    S[rate//8+2] ^= bytes_to_int(p_key[16:])
+    S[rate//8+2] ^= bytes_to_int(key[16:] + zero_bytes(4))
 
     ascon_permutation(S, a)
 
@@ -393,7 +470,19 @@ def demo_hash(variant="Ascon-Hash", hashlength=32):
 
     demo_print([("message", message), ("tag", tag)])
 
+def demo_mac(variant="Ascon-Mac", taglength=16):
+    assert variant in ["Ascon-Mac", "Ascon-Prf", "Ascon-Maca", "Ascon-Prfa", "Ascon-PrfShort"]
+    keysize = 16
+    print("=== demo MAC using {variant} ===".format(variant=variant))
+
+    key = get_random_bytes(keysize)
+    message = b"ascon"
+    tag = ascon_mac(key, message, variant)
+
+    demo_print([("key", key), ("message", message), ("tag", tag)])
+
 
 if __name__ == "__main__":
     demo_aead("Ascon-128")
     demo_hash("Ascon-Hash")
+    demo_mac("Ascon-Mac")

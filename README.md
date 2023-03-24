@@ -23,28 +23,37 @@ Algorithms
 
 This is a simple reference implementation of Ascon v1.2 as submitted to the NIST LWC competition that includes 
 
-  * Three family members for authenticated encryption:
+  * Authenticated encryption `ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128")` (and similarly `decrypt`) with the following 3 family members:
 
     - `Ascon-128`
     - `Ascon-128a`
     - `Ascon-80pq`
   
-  * Four hashing algorithms: hash function variants with fixed 256-bit (`Hash`) or variable (`Xof`) output lengths 
+  * Hashing algorithms `ascon_hash(message, variant="Ascon-Hash", hashlength=32)` including 4 hash function variants with fixed 256-bit (`Hash`) or variable (`Xof`) output lengths:
 
     - `Ascon-Hash`
     - `Ascon-Hasha`
     - `Ascon-Xof`
     - `Ascon-Xofa`
+  
+  * Message authentication codes `ascon_mac(key, message, variant="Ascon-Mac", taglength=16)` including 5 MAC variants (from https://eprint.iacr.org/2021/1574, not part of the LWC proposal) with fixed 128-bit (`Mac`) or variable (`Prf`) output lengths, including a variant for short messages of up to 128 bits (`PrfShort`).
+
+    - `Ascon-Mac`
+    - `Ascon-Maca`
+    - `Ascon-Prf`
+    - `Ascon-Prfa`
+    - `Ascon-PrfShort`
 
 Files
 -----
 
   * `ascon.py`: 
-    Implements the seven family members as well as the underlying permutation:
+    Implements all family members as well as the underlying permutation:
 
     - `ascon_encryption()`/`ascon_decrypt()` for authenticated encryption,
     - `ascon_hash()` for hashing,
-    - `ascon_permutation` for the underlying permutation.
+    - `ascon_mac()` for message authentication,
+    - `ascon_permutation()` for the underlying permutation.
 
     By default, prints the results of encrypting and hashing some example strings.
 
@@ -65,9 +74,11 @@ Files
     Results are written to 
 
     - `LWC_AEAD_KAT_{klenbits}_{nlenbits}.txt` for authenticated encryption,
-    - `LWC_HASH_KAT_{hlenbits}.txt` for hashing.
+    - `LWC_HASH_KAT_{hlenbits}.txt` for hashing,
+    - `LWC_MAC_KAT_{hlenbits}.txt` for message authentication codes.
 
     Additionally, a JSON version of the same data is written to the corresponding `.json` files.
+    Note that this may overwrite KATs for other variants which share the same parameters.
 
 
   * `writer.py`:
