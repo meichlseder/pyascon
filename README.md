@@ -75,7 +75,7 @@ Files
 
     - `LWC_AEAD_KAT_{klenbits}_{nlenbits}.txt` for authenticated encryption,
     - `LWC_HASH_KAT_{hlenbits}.txt` for hashing,
-    - `LWC_MAC_KAT_{hlenbits}.txt` for message authentication codes.
+    - `LWC_AUTH_KAT_128_128.txt` for message authentication codes.
 
     Additionally, a JSON version of the same data is written to the corresponding `.json` files.
     Note that this may overwrite KATs for other variants which share the same parameters.
