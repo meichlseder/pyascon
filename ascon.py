@@ -146,7 +146,8 @@ def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128"):
     returns a bytes object of length len(plaintext)+16 containing the ciphertext and tag
     """
     assert variant in ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
-    assert(len(nonce) == 16 and (len(key) == 16 or (len(key) == 20 and variant == "Ascon-80pq")))
+    if variant in ["Ascon-128", "Ascon-128a"]: assert(len(key) == 16 and len(nonce) == 16)
+    if variant == "Ascon-80pq": assert(len(key) == 20 and len(nonce) == 16)
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8   # bits
     a = 12   # rounds
@@ -171,8 +172,8 @@ def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-128"):
     returns a bytes object containing the plaintext or None if verification fails
     """
     assert variant in ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
-    assert(len(nonce) == 16 and (len(key) == 16 or (len(key) == 20 and variant == "Ascon-80pq")))
-    assert(len(ciphertext) >= 16)
+    if variant in ["Ascon-128", "Ascon-128a"]: assert(len(key) == 16 and len(nonce) == 16 and len(ciphertext) >= 16)
+    if variant == "Ascon-80pq": assert(len(key) == 20 and len(nonce) == 16 and len(ciphertext) >= 16)
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8 # bits
     a = 12 # rounds
@@ -344,7 +345,7 @@ def ascon_finalize(S, rate, a, key):
     assert(len(key) in [16,20])
     S[rate//8+0] ^= bytes_to_int(key[0:8])
     S[rate//8+1] ^= bytes_to_int(key[8:16])
-    S[rate//8+2] ^= bytes_to_int(key[16:] + zero_bytes(4))
+    S[rate//8+2] ^= bytes_to_int(key[16:] + zero_bytes(24-len(key)))
 
     ascon_permutation(S, a)
 
