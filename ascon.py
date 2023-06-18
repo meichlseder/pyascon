@@ -230,7 +230,7 @@ def ascon_process_associated_data(S, b, rate, associateddata):
     """
     if len(associateddata) > 0:
         a_zeros = rate - (len(associateddata) % rate) - 1
-        a_padding = to_bytes([0x80] + [0 for i in range(a_zeros)])
+        a_padding = to_bytes([0x80] +  [0x00]*a_zeros)
         a_padded = associateddata + a_padding
 
         for block in range(0, len(a_padded), rate):
@@ -293,7 +293,8 @@ def ascon_process_ciphertext(S, b, rate, ciphertext):
     returns the plaintext, updates S
     """
     c_lastlen = len(ciphertext) % rate
-    c_padded = ciphertext + zero_bytes(rate - c_lastlen)
+    c_padding = to_bytes([0x80] + (rate - c_lastlen - 1)*[0x00])
+    c_padded = ciphertext + c_padding
 
     # first t-1 blocks
     plaintext = to_bytes([])
@@ -313,11 +314,10 @@ def ascon_process_ciphertext(S, b, rate, ciphertext):
     # last block t
     block = len(c_padded) - rate
     if rate == 8:
-        c_padding1 = (0x80 << (rate-c_lastlen-1)*8)
-        c_mask = (0xFFFFFFFFFFFFFFFF >> (c_lastlen*8))
         Ci = bytes_to_int(c_padded[block:block+8])
         plaintext += int_to_bytes(Ci ^ S[0], 8)[:c_lastlen]
-        S[0] = Ci ^ (S[0] & c_mask) ^ c_padding1
+        padded_plaintext = bytes_to_int(plaintext[:c_lastlen] + c_padding)
+        S[0] ^= padded_plaintext
     elif rate == 16:
         c_lastlen_word = c_lastlen % 8
         c_padding1 = (0x80 << (8-c_lastlen_word-1)*8)
