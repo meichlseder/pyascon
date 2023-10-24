@@ -204,7 +204,7 @@ def ascon_initialize(S, k, rate, a, b, key, nonce):
     nonce: a bytes object of size 16
     returns nothing, updates S
     """
-    iv_zero_key_nonce = to_bytes([k, rate * 8, a, b] + (20-len(key))*[0]) + key + nonce
+    iv_zero_key_nonce = to_bytes([k, rate * 8, a, b]) + zero_bytes(20-len(key)) + key + nonce
     S[0], S[1], S[2], S[3], S[4] = bytes_to_state(iv_zero_key_nonce)
     if debug: printstate(S, "initial value:")
 
@@ -229,8 +229,7 @@ def ascon_process_associated_data(S, b, rate, associateddata):
     returns nothing, updates S
     """
     if len(associateddata) > 0:
-        a_zeros = rate - (len(associateddata) % rate) - 1
-        a_padding = to_bytes([0x80] + [0 for i in range(a_zeros)])
+        a_padding = to_bytes([0x80]) + zero_bytes(rate - (len(associateddata) % rate) - 1)
         a_padded = associateddata + a_padding
 
         for block in range(0, len(a_padded), rate):
@@ -254,7 +253,7 @@ def ascon_process_plaintext(S, b, rate, plaintext):
     returns the ciphertext (without tag), updates S
     """
     p_lastlen = len(plaintext) % rate
-    p_padding = to_bytes([0x80] + (rate-p_lastlen-1)*[0x00])
+    p_padding = to_bytes([0x80]) + zero_bytes(rate-p_lastlen-1)
     p_padded = plaintext + p_padding
 
     # first t-1 blocks
