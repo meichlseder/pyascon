@@ -1,0 +1,10 @@
+name: cryAscon
+dependencies:
+  - numpy
+  - pandas
+  - matplotlib
+  - scipy
+  - sympy
+  - pycryptodome
+  - jupyter
+  - gmpy2
