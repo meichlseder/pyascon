@@ -33,7 +33,7 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     if debug: printstate(S, "initialization:")
 
     # Message Processing (Absorbing)
-    m_padding = to_bytes([0x80]) + zero_bytes(rate - (len(message) % rate) - 1)
+    m_padding = to_bytes([0x01]) + zero_bytes(rate - (len(message) % rate) - 1)
     m_padded = message + m_padding
 
     # first s-1 blocks
@@ -52,7 +52,7 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
         H += int_to_bytes(S[0], 8)  # rate=8
         ascon_permutation(S, b)
     if debug: printstate(S, "finalization:")
-    return H[:hashlength]
+    return H[:hashlength]  # TODO check
 
 
 # === Ascon MAC/PRF ===
@@ -99,7 +99,7 @@ def ascon_mac(key, message, variant="Ascon-Mac", taglength=16):
         if debug: printstate(S, "initialization:")
 
         # Message Processing (Absorbing)
-        m_padding = to_bytes([0x80]) + zero_bytes(msgblocksize - (len(message) % msgblocksize) - 1)
+        m_padding = to_bytes([0x01]) + zero_bytes(msgblocksize - (len(message) % msgblocksize) - 1)
         m_padded = message + m_padding
 
         # first s-1 blocks
@@ -229,7 +229,7 @@ def ascon_process_associated_data(S, b, rate, associateddata):
     returns nothing, updates S
     """
     if len(associateddata) > 0:
-        a_padding = to_bytes([0x80]) + zero_bytes(rate - (len(associateddata) % rate) - 1)
+        a_padding = to_bytes([0x01]) + zero_bytes(rate - (len(associateddata) % rate) - 1)
         a_padded = associateddata + a_padding
 
         for block in range(0, len(a_padded), rate):
@@ -253,7 +253,7 @@ def ascon_process_plaintext(S, b, rate, plaintext):
     returns the ciphertext (without tag), updates S
     """
     p_lastlen = len(plaintext) % rate
-    p_padding = to_bytes([0x80]) + zero_bytes(rate-p_lastlen-1)
+    p_padding = to_bytes([0x01]) + zero_bytes(rate-p_lastlen-1)
     p_padded = plaintext + p_padding
 
     # first t-1 blocks
@@ -312,14 +312,14 @@ def ascon_process_ciphertext(S, b, rate, ciphertext):
     # last block t
     block = len(c_padded) - rate
     if rate == 8:
-        c_padding1 = (0x80 << (rate-c_lastlen-1)*8)
+        c_padding1 = (0x01 << (c_lastlen*8))
         c_mask = (0xFFFFFFFFFFFFFFFF >> (c_lastlen*8))
         Ci = bytes_to_int(c_padded[block:block+8])
         plaintext += int_to_bytes(Ci ^ S[0], 8)[:c_lastlen]
         S[0] = Ci ^ (S[0] & c_mask) ^ c_padding1
     elif rate == 16:
         c_lastlen_word = c_lastlen % 8
-        c_padding1 = (0x80 << (8-c_lastlen_word-1)*8)
+        c_padding1 = (0x01 << (c_lastlen_word*8))
         c_mask = (0xFFFFFFFFFFFFFFFF >> (c_lastlen_word*8))
         Ci = (bytes_to_int(c_padded[block:block+8]), bytes_to_int(c_padded[block+8:block+16]))
         plaintext += (int_to_bytes(S[0] ^ Ci[0], 8) + int_to_bytes(S[1] ^ Ci[1], 8))[:c_lastlen]
@@ -404,13 +404,13 @@ def to_bytes(l): # where l is a list or bytearray or bytes
     return bytes(bytearray(l))
 
 def bytes_to_int(bytes):
-    return sum([bi << ((len(bytes) - 1 - i)*8) for i, bi in enumerate(to_bytes(bytes))])
+    return sum([bi << (i*8) for i, bi in enumerate(to_bytes(bytes))])
 
 def bytes_to_state(bytes):
     return [bytes_to_int(bytes[8*w:8*(w+1)]) for w in range(5)]
 
 def int_to_bytes(integer, nbytes):
-    return to_bytes([(integer >> ((nbytes - 1 - i) * 8)) % 256 for i in range(nbytes)])
+    return to_bytes([(integer >> (i * 8)) % 256 for i in range(nbytes)])
 
 def rotr(val, r):
     return (val >> r) | ((val & (1<<r)-1) << (64-r))
