@@ -17,11 +17,11 @@ def kat_aead(variant):
     MAX_MESSAGE_LENGTH = 32
     MAX_ASSOCIATED_DATA_LENGTH = 32
 
-    klen = 20 if variant == "Ascon-80pq" else 16  # =CRYPTO_KEYBYTES
+    klen = 16  # =CRYPTO_KEYBYTES
     nlen = 16  # =CRYPTO_NPUBBYTES
     tlen = 16  # <=CRYPTO_ABYTES
     filename = "LWC_AEAD_KAT_{klenbits}_{nlenbits}".format(klenbits=klen*8, nlenbits=nlen*8)
-    assert variant in ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
+    assert variant in ["Ascon-AEAD128"]
 
     key   = kat_bytes(klen)
     nonce = kat_bytes(nlen)
@@ -48,11 +48,16 @@ def kat_aead(variant):
                 w.close()
 
 
-def kat_hash(variant="Ascon-Hash"):
+def kat_hash(variant="Ascon-Hash256"):
     MAX_MESSAGE_LENGTH = 1024
     hlen = 32  # =CRYPTO_BYTES
-    filename = "LWC_HASH_KAT_{hlenbits}".format(hlenbits=hlen*8)
-    assert variant in ["Ascon-Xof", "Ascon-Xofa", "Ascon-Hash", "Ascon-Hasha"]
+    hashtypes = {"Ascon-Hash256": "HASH",
+                 "Ascon-XOF128": "XOF",   # originally: HASH
+                 "Ascon-CXOF128": "CXOF"} # originally: HASH
+    assert variant in hashtypes.keys()
+    # TODO CXOF not yet implemented
+    
+    filename = "LWC_{hashtype}_KAT_{hlenbits}".format(hashtype=hashtypes[variant], hlenbits=hlen*8)
 
     msg = kat_bytes(MAX_MESSAGE_LENGTH)
     with MultipleWriter(filename) as w:
@@ -73,7 +78,7 @@ def kat_auth(variant="Ascon-Mac"):
     klen = 16
     hlen = 16
     filename = "LWC_AUTH_KAT_{klenbits}_{hlenbits}".format(klenbits=klen*8, hlenbits=hlen*8)
-    assert variant in ["Ascon-Mac", "Ascon-Maca", "Ascon-Prf", "Ascon-Prfa", "Ascon-PrfShort"]
+    assert variant in ["Ascon-Mac", "Ascon-Prf", "Ascon-PrfShort"]
 
     key = kat_bytes(klen)
     msg = kat_bytes(MAX_MESSAGE_LENGTH)
@@ -91,9 +96,9 @@ def kat_auth(variant="Ascon-Mac"):
 
 
 def kat(variant):
-    aead_variants = ["Ascon-128", "Ascon-128a", "Ascon-80pq"]
-    hash_variants = ["Ascon-Hash", "Ascon-Hasha", "Ascon-Xof", "Ascon-Xofa"]
-    auth_variants = ["Ascon-Mac", "Ascon-Maca", "Ascon-Prf", "Ascon-Prfa", "Ascon-PrfShort"]
+    aead_variants = ["Ascon-AEAD128"]
+    hash_variants = ["Ascon-Hash256", "Ascon-XOF128", "Ascon-CXOF128"]
+    auth_variants = ["Ascon-Mac", "Ascon-Prf", "Ascon-PrfShort"]
     assert variant in aead_variants + hash_variants + auth_variants
     if variant in aead_variants: kat_fun = kat_aead
     if variant in hash_variants: kat_fun = kat_hash
@@ -102,5 +107,5 @@ def kat(variant):
 
 
 if __name__ == "__main__":
-    variant = sys.argv[1] if len(sys.argv) > 1 else "Ascon-128"
+    variant = sys.argv[1] if len(sys.argv) > 1 else "Ascon-AEAD128"
     kat(variant)
