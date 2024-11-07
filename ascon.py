@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 """
-Implementation of Ascon v1.2, an authenticated cipher and hash function
-http://ascon.iaik.tugraz.at/
+Implementation of Ascon, an authenticated cipher and hash function
+NIST SP 800-232
+https://ascon.iaik.tugraz.at/
 """
 
 debug = False

@@ -1,7 +1,8 @@
 Python implementation of Ascon
 ==============================
 
-This is a Python3 implementation of Ascon v1.2, an authenticated cipher and hash function.
+This is a Python3 implementation of Ascon, a family of lightweight cryptographic algorithms.
+`ascon.py` includes the authenticated encryption and hash function variants as specified in [NIST SP 800-232 (initial public draft)](https://csrc.nist.gov/pubs/sp/800/232/ipd).
 
 https://github.com/meichlseder/pyascon
 
@@ -21,22 +22,38 @@ https://ascon.iaik.tugraz.at/
 Algorithms
 ----------
 
-This is a simple reference implementation of Ascon v1.2 as submitted to the NIST LWC competition that includes 
+This is a simple reference implementation of Ascon as specified in NIST's draft standard, NIST SP 800-232, which includes
 
-  * Authenticated encryption `ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128")` (and similarly `decrypt`) with the following 3 family members:
+  * Authenticated encryption `ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-AEAD128")` (and similarly `decrypt`):
+
+    - `Ascon-AEAD128`
+  
+  * Hashing algorithms `ascon_hash(message, variant="Ascon-Hash256", hashlength=32)` including 3 hash function variants with slightly different interfaces:
+
+    - `Ascon-Hash256` with fixed 256-bit output
+    - `Ascon-XOF128` with variable output lengths (specified with `hashlength`)
+    - `Ascon-CXOF128` with variable output lengths (`hashlength`) and supporting a customization string as an additional input (to be implemented)
+  
+
+Older Algorithm Variants
+------------------------
+
+Older versions of `ascon.py` implement Ascon v1.2 as submitted to the NIST LWC competition and published in the Journal of Cryptology, as well as additional functionality for message authentication. These versions can be found in commit (TODO), including
+
+  * Authenticated encryption:
 
     - `Ascon-128`
     - `Ascon-128a`
     - `Ascon-80pq`
   
-  * Hashing algorithms `ascon_hash(message, variant="Ascon-Hash", hashlength=32)` including 4 hash function variants with fixed 256-bit (`Hash`) or variable (`Xof`) output lengths:
+  * Hashing algorithms:
 
     - `Ascon-Hash`
     - `Ascon-Hasha`
     - `Ascon-Xof`
     - `Ascon-Xofa`
   
-  * Message authentication codes `ascon_mac(key, message, variant="Ascon-Mac", taglength=16)` including 5 MAC variants (from https://eprint.iacr.org/2021/1574, not part of the LWC proposal) with fixed 128-bit (`Mac`) or variable (`Prf`) output lengths, including a variant for short messages of up to 128 bits (`PrfShort`).
+  * Message authentication codes `ascon_mac(key, message, variant="Ascon-Mac", taglength=16)` for 5 MAC variants (from https://eprint.iacr.org/2021/1574, not part of the LWC proposal) with fixed 128-bit (`Mac`) or variable (`Prf`) output lengths, including a variant for short messages of up to 128 bits (`PrfShort`).
 
     - `Ascon-Mac`
     - `Ascon-Maca`
@@ -64,10 +81,10 @@ Files
   * `genkat.py`:
     Produces result files for the Known Answer Tests (KATs) defined for the [NIST LWC competition](https://csrc.nist.gov/projects/lightweight-cryptography) ([call for algorithms](https://csrc.nist.gov/CSRC/media/Projects/Lightweight-Cryptography/documents/final-lwc-submission-requirements-august2018.pdf), [test vector generation code](https://csrc.nist.gov/CSRC/media/Projects/Lightweight-Cryptography/documents/TestVectorGen.zip)).
 
-    Call with the name of the target algorithm (see above) as first parameter, default is `Ascon-128`:
+    Call with the name of the target algorithm (see above) as first parameter, default is `Ascon-AEAD128`:
 
     ```sh
-    python3 genkat.py Ascon-128
+    python3 genkat.py Ascon-AEAD128
 
     ```
 
@@ -75,10 +92,12 @@ Files
 
     - `LWC_AEAD_KAT_{klenbits}_{nlenbits}.txt` for authenticated encryption,
     - `LWC_HASH_KAT_{hlenbits}.txt` for hashing,
-    - `LWC_AUTH_KAT_128_128.txt` for message authentication codes.
+    - `LWC_XOF_KAT_{hlenbits}.txt` for extendable-output hashing (custom KAT configuration),
+    - `LWC_CXOF_KAT_{hlenbits}.txt` for customizable-input extendable-output hashing (custom KAT configuration), and
+    - `LWC_AUTH_KAT_128_128.txt` for various message authentication codes.
 
     Additionally, a JSON version of the same data is written to the corresponding `.json` files.
-    Note that this may overwrite KATs for other variants which share the same parameters.
+    Note that this may overwrite KATs for other variants which share the same parameters (in the `AUTH` case).
 
 
   * `writer.py`:
