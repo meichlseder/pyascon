@@ -11,22 +11,26 @@ debugpermutation = False
 
 # === Ascon hash/xof ===
 
-def ascon_hash(message, variant="Ascon-Hash256", hashlength=32): 
+def ascon_hash(message, variant="Ascon-Hash256", hashlength=32, customization=b""): 
     """
     Ascon hash function and extendable-output function.
     message: a bytes object of arbitrary length
     variant: "Ascon-Hash256" (with 256-bit output for 128-bit security), "Ascon-XOF128", or "Ascon-CXOF128" (both with arbitrary output length, security=min(128, bitlen/2))
     hashlength: the requested output bytelength (must be 32 for variant "Ascon-Hash256"; can be arbitrary for Ascon-XOF128, but should be >= 32 for 128-bit security)
+    customization: a bytes object of at most 256 bytes specifying the customization string (only for Ascon-CXOF128)
     returns a bytes object containing the hash tag
     """
     versions = {"Ascon-Hash256": 2,
                 "Ascon-XOF128": 3,
                 "Ascon-CXOF128": 4}
     assert variant in versions.keys()
-    if variant == "Ascon-Hash256": assert(hashlength == 32)
+    if variant == "Ascon-Hash256": assert hashlength == 32
+    if variant == "Ascon-CXOF128": assert len(customization) <= 256
+    else: assert len(customization) == 0
     a = b = 12 # rounds
     rate = 8 # bytes
     taglen = 256 if variant == "Ascon-Hash256" else 0
+    customize = True if variant == "Ascon-CXOF128" else False
 
     # Initialization
     iv = to_bytes([versions[variant], 0, (b<<4) + a]) + int_to_bytes(taglen, 2) + to_bytes([rate, 0, 0])
@@ -35,6 +39,18 @@ def ascon_hash(message, variant="Ascon-Hash256", hashlength=32):
 
     ascon_permutation(S, 12)
     if debug: printstate(S, "initialization:")
+
+    # Customization
+    if customize: 
+        z_padding = to_bytes([0x01]) + zero_bytes(rate - (len(customization) % rate) - 1)
+        z_length = int_to_bytes(len(customization)*8, 8)
+        z_padded = z_length + customization + z_padding
+
+        # customization blocks 0,...,m
+        for block in range(0, len(z_padded), rate):
+            S[0] ^= bytes_to_int(z_padded[block:block+rate])
+            ascon_permutation(S, 12)
+        if debug: printstate(S, "customization:")
 
     # Message Processing (Absorbing)
     m_padding = to_bytes([0x01]) + zero_bytes(rate - (len(message) % rate) - 1)
@@ -67,14 +83,14 @@ def ascon_mac(key, message, variant="Ascon-Mac", taglength=16):
     returns a bytes object containing the authentication tag
     """
     assert variant in ["Ascon-Mac", "Ascon-Prf", "Ascon-PrfShort"]
-    if variant == "Ascon-Mac": assert(len(key) == 16 and taglength <= 16)
-    if variant == "Ascon-Prf": assert(len(key) == 16)
-    if variant == "Ascon-PrfShort": assert(len(key) == 16 and taglength <= 16 and len(message) <= 16)
+    if variant == "Ascon-Mac": assert len(key) == 16 and taglength <= 16
+    if variant == "Ascon-Prf": assert len(key) == 16
+    if variant == "Ascon-PrfShort": assert len(key) == 16 and taglength <= 16 and len(message) <= 16
     a = b = 12  # rounds
     msgblocksize = 32 # bytes (input rate for Mac, Prf)
     rate = 16 # bytes (output rate)
 
-    # TODO update IVs
+    # TODO update IVs to be consistent with NIST format
 
     if variant == "Ascon-PrfShort":
         # Initialization + Message Processing (Absorbing)
@@ -144,7 +160,7 @@ def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-AEAD128"
     """
     versions = {"Ascon-AEAD128": 1}
     assert variant in versions.keys()
-    assert(len(key) == 16 and len(nonce) == 16)
+    assert len(key) == 16 and len(nonce) == 16
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8   # bits
     a = 12   # rounds
@@ -170,7 +186,7 @@ def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-AEAD128
     """
     versions = {"Ascon-AEAD128": 1}
     assert variant in versions.keys()
-    assert(len(key) == 16 and len(nonce) == 16 and len(ciphertext) >= 16)
+    assert len(key) == 16 and len(nonce) == 16 and len(ciphertext) >= 16
     S = [0, 0, 0, 0, 0]
     k = len(key) * 8 # bits
     a = 12  # rounds
@@ -314,7 +330,7 @@ def ascon_finalize(S, rate, a, key):
     key: a bytes object of size 16 (for Ascon-AEAD128; 128-bit security)
     returns the tag, updates S
     """
-    assert(len(key) == 16)
+    assert len(key) == 16
     S[rate//8+0] ^= bytes_to_int(key[0:8])
     S[rate//8+1] ^= bytes_to_int(key[8:16])
 
@@ -336,7 +352,7 @@ def ascon_permutation(S, rounds=1):
     rounds: number of rounds to perform
     returns nothing, updates S
     """
-    assert(rounds <= 12)
+    assert rounds <= 12
     if debugpermutation: printwords(S, "permutation input:")
     for r in range(12-rounds, 12):
         # --- add round constants ---
@@ -440,12 +456,13 @@ def demo_hash(variant="Ascon-Hash256", hashlength=32):
     print("=== demo hash using {variant} ===".format(variant=variant))
 
     message = b"ascon"
-    tag = ascon_hash(message, variant, hashlength) # TODO CXOF interface
+    customization = b"custom" if variant == "Ascon-CXOF128" else b""
+    tag = ascon_hash(message, variant, hashlength, customization)
 
-    demo_print([("message", message), ("tag", tag)])
+    demo_print([("message", message), ("customization", customization), ("tag", tag)])
 
 def demo_mac(variant="Ascon-Mac", taglength=16):
-    # TODO rename variants
+    # TODO rename variants to be consistent with NIST format
     assert variant in ["Ascon-Mac", "Ascon-Prf", "Ascon-PrfShort"]
     print("=== demo MAC using {variant} ===".format(variant=variant))
 
