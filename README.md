@@ -32,7 +32,7 @@ This is a simple reference implementation of Ascon as specified in NIST's draft 
 
     - `Ascon-Hash256` with fixed 256-bit output
     - `Ascon-XOF128` with variable output lengths (specified with `hashlength`)
-    - `Ascon-CXOF128` with variable output lengths (`hashlength`) and supporting a customization string as an additional input (to be implemented)
+    - `Ascon-CXOF128` with variable output lengths (`hashlength`) and supporting a customization string as an additional input
   
 
 Older Algorithm Variants
