@@ -7,13 +7,22 @@ KAT implementation for NIST (based on TestVectorGen.zip)
 import ascon
 import sys
 from writer import MultipleWriter
+from typing import Literal, TypeAlias
 
+AsconVariants: TypeAlias = Literal[
+    "Ascon-AEAD128",
+    "Ascon-Hash256",
+    "Ascon-XOF128",
+    "Ascon-CXOF128",
+    "Ascon-Mac",
+    "Ascon-Prf",
+    "Ascon-PrfShort"
+]
 
-def kat_bytes(length):
+def kat_bytes(length: int) -> bytes:
     return bytes(bytearray([i % 256 for i in range(length)]))
 
-
-def kat_aead(variant):
+def kat_aead(variant: AsconVariants) -> None:
     MAX_MESSAGE_LENGTH = 32
     MAX_ASSOCIATED_DATA_LENGTH = 32
 
@@ -48,7 +57,7 @@ def kat_aead(variant):
                 w.close()
 
 
-def kat_hash(variant="Ascon-Hash256"):
+def kat_hash(variant: AsconVariants = "Ascon-Hash256") -> None:
     MAX_MESSAGE_LENGTH = 1024
     hlen = 32  # =CRYPTO_BYTES
     hashtypes = {"Ascon-Hash256": "HASH",
@@ -71,7 +80,7 @@ def kat_hash(variant="Ascon-Hash256"):
             w.close()
 
 
-def kat_cxof(variant="Ascon-CXOF128"):
+def kat_cxof(variant: AsconVariants = "Ascon-CXOF128") -> None:
     # proposed KAT format - not official reference
     MAX_MESSAGE_LENGTH = 32
     MAX_CUSTOMIZATION_LENGTH = 32
@@ -97,7 +106,7 @@ def kat_cxof(variant="Ascon-CXOF128"):
                 w.close()
 
 
-def kat_auth(variant="Ascon-Mac"):
+def kat_auth(variant: AsconVariants = "Ascon-Mac") -> None:
     MAX_MESSAGE_LENGTH = 1024
     if variant == "Ascon-PrfShort": MAX_MESSAGE_LENGTH = 16
     klen = 16
@@ -120,7 +129,7 @@ def kat_auth(variant="Ascon-Mac"):
             w.close()
 
 
-def kat(variant):
+def kat(variant: AsconVariants) -> None:
     aead_variants = ["Ascon-AEAD128"]
     hash_variants = ["Ascon-Hash256", "Ascon-XOF128", "Ascon-CXOF128"]
     cxof_variants = ["Ascon-CXOF128"] # will produce two KATs (hash+cxof)

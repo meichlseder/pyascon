@@ -5,13 +5,25 @@ Implementation of Ascon, an authenticated cipher and hash function
 NIST SP 800-232
 https://ascon.iaik.tugraz.at/
 """
+from typing import Literal, TypeAlias, Iterable, Union, List, Tuple
+
+AsconVariants: TypeAlias = Literal[
+    "Ascon-AEAD128",
+    "Ascon-Hash256",
+    "Ascon-XOF128",
+    "Ascon-CXOF128",
+    "Ascon-Mac",
+    "Ascon-Prf",
+    "Ascon-PrfShort"
+]
+
 
 debug = False
 debugpermutation = False
 
 # === Ascon hash/xof ===
 
-def ascon_hash(message, variant="Ascon-Hash256", hashlength=32, customization=b""): 
+def ascon_hash(message: bytes, variant: AsconVariants = "Ascon-Hash256", hashlength: int = 32, customization: bytes = b"") -> bytes:
     """
     Ascon hash function and extendable-output function.
     message: a bytes object of arbitrary length
@@ -73,7 +85,7 @@ def ascon_hash(message, variant="Ascon-Hash256", hashlength=32, customization=b"
 
 # === Ascon MAC/PRF ===
 
-def ascon_mac(key, message, variant="Ascon-Mac", taglength=16): 
+def ascon_mac(key: bytes, message: bytes, variant: AsconVariants = "Ascon-Mac", taglength: int = 16) -> bytes:
     """
     Ascon message authentication code (MAC) and pseudorandom function (PRF).
     key: a bytes object of size 16
@@ -148,7 +160,7 @@ def ascon_mac(key, message, variant="Ascon-Mac", taglength=16):
 
 # === Ascon AEAD encryption and decryption ===
 
-def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-AEAD128"): 
+def ascon_encrypt(key: bytes, nonce: bytes, associateddata: bytes, plaintext: bytes, variant: AsconVariants = "Ascon-AEAD128") -> bytes: 
     """
     Ascon encryption.
     key: a bytes object of size 16 (for Ascon-AEAD128; 128-bit security)
@@ -174,7 +186,7 @@ def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-AEAD128"
     return ciphertext + tag
 
 
-def ascon_decrypt(key, nonce, associateddata, ciphertext, variant="Ascon-AEAD128"):
+def ascon_decrypt(key: bytes, nonce: bytes, associateddata: bytes, ciphertext: bytes, variant: AsconVariants = "Ascon-AEAD128") -> Union[bytes, None]:
     """
     Ascon decryption.
     key: a bytes object of size 16 (for Ascon-AEAD128; 128-bit security)
@@ -381,52 +393,54 @@ def ascon_permutation(S, rounds=1):
 
 # === helper functions ===
 
-def get_random_bytes(num):
+def get_random_bytes(num: int) -> bytes:
     import os
     return to_bytes(os.urandom(num))
 
-def zero_bytes(n):
+def zero_bytes(n: int) -> bytes:
     return n * b"\x00"
 
-def ff_bytes(n):
+def ff_bytes(n: int) -> bytes:
     return n * b"\xFF"
 
-def to_bytes(l): # where l is a list or bytearray or bytes
+def to_bytes(l: Union[bytearray, bytes, Iterable[int]]) -> bytes:
+    # where l is a list or bytearray or bytes
     return bytes(bytearray(l))
 
-def bytes_to_int(bytes):
+def bytes_to_int(bytes: bytes) -> int:
     return sum([bi << (i*8) for i, bi in enumerate(to_bytes(bytes))])
 
-def bytes_to_state(bytes):
+def bytes_to_state(bytes: bytes) -> List[int]:
     return [bytes_to_int(bytes[8*w:8*(w+1)]) for w in range(5)]
 
-def int_to_bytes(integer, nbytes):
+def int_to_bytes(integer: int, nbytes: int) -> bytes:
     return to_bytes([(integer >> (i * 8)) % 256 for i in range(nbytes)])
 
-def rotr(val, r):
+def rotr(val: int, r: int) -> int:
     return (val >> r) | ((val & (1<<r)-1) << (64-r))
 
-def bytes_to_hex(b):
+def bytes_to_hex(b: bytes) -> str:
     return b.hex()
     #return "".join(x.encode('hex') for x in b)
 
-def printstate(S, description=""):
+def printstate(S: List[int], description: str = "") -> None:
     print(" " + description)
     print(" ".join(["{s:016x}".format(s=s) for s in S]))
 
-def printwords(S, description=""):
+def printwords(S: List[int], description: str = "") -> None:
     print(" " + description)
     print("\n".join(["  x{i}={s:016x}".format(**locals()) for i, s in enumerate(S)]))
 
 
 # === some demo if called directly ===
 
-def demo_print(data):
+def demo_print(data: List[Tuple[str, Union[bytes, None]]]) -> None:
     maxlen = max([len(text) for (text, val) in data])
     for text, val in data:
-        print("{text}:{align} 0x{val} ({length} bytes)".format(text=text, align=((maxlen - len(text)) * " "), val=bytes_to_hex(val), length=len(val)))
+        val_ = bytes_to_hex(val) if val is not None else None
+        print("{text}:{align} 0x{val} ({length} bytes)".format(text=text, align=((maxlen - len(text)) * " "), val=val_, length=len(val_) if val_ is not None else 0))
 
-def demo_aead(variant="Ascon-AEAD128"):
+def demo_aead(variant: AsconVariants = "Ascon-AEAD128") -> None:
     assert variant in ["Ascon-AEAD128"]
     print("=== demo encryption using {variant} ===".format(variant=variant))
 
@@ -440,7 +454,7 @@ def demo_aead(variant="Ascon-AEAD128"):
     ciphertext        = ascon_encrypt(key, nonce, associateddata, plaintext,  variant)
     receivedplaintext = ascon_decrypt(key, nonce, associateddata, ciphertext, variant)
 
-    if receivedplaintext == None: print("verification failed!")
+    if receivedplaintext is None: print("verification failed!")
         
     demo_print([("key", key), 
                 ("nonce", nonce), 
@@ -451,7 +465,7 @@ def demo_aead(variant="Ascon-AEAD128"):
                 ("received", receivedplaintext), 
                ])
 
-def demo_hash(variant="Ascon-Hash256", hashlength=32):
+def demo_hash(variant: AsconVariants = "Ascon-Hash256", hashlength: int = 32) -> None:
     assert variant in ["Ascon-Hash256", "Ascon-XOF128", "Ascon-CXOF128"]
     print("=== demo hash using {variant} ===".format(variant=variant))
 
@@ -461,7 +475,7 @@ def demo_hash(variant="Ascon-Hash256", hashlength=32):
 
     demo_print([("message", message), ("customization", customization), ("tag", tag)])
 
-def demo_mac(variant="Ascon-Mac", taglength=16):
+def demo_mac(variant: AsconVariants = "Ascon-Mac", taglength: int = 16) -> None:
     # TODO rename variants to be consistent with NIST format
     assert variant in ["Ascon-Mac", "Ascon-Prf", "Ascon-PrfShort"]
     print("=== demo MAC using {variant} ===".format(variant=variant))
