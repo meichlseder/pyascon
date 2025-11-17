@@ -3,19 +3,16 @@
 """
 Writers for output test vectors in Text and JSON formats.
 """
+from __future__ import annotations
 
-from typing import Type, Any, Optional, Self, overload
+from typing import Type, Any, Optional, Self
 from types import TracebackType
-from io import TextIOWrapper
 from abc import ABC, abstractmethod
 
 class GenericWriter(ABC):
     """
     GenericWriter used as a base class for all writers for better typing.
     """
-    def __init__(self, filename: str) -> None:
-        self.fp : TextIOWrapper
-
     @abstractmethod
     def __enter__(self) -> Self:
         pass
@@ -42,7 +39,6 @@ class TextWriter(GenericWriter):
     """
 
     def __init__(self, filename: str) -> None:
-        super().__init__(filename)
         self.fp = open(filename + ".txt", "w")
         self.is_open = False
 
@@ -50,7 +46,7 @@ class TextWriter(GenericWriter):
         return self
 
     def __exit__(self, stype: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
-        pass
+        self.fp.close()
 
     def append(self, label: Any, value: Any, length: Optional[int] = None) -> None:
         assert self.is_open, "cannot append if not open yet"
@@ -77,7 +73,6 @@ class JSONWriter(GenericWriter):
     """
 
     def __init__(self, filename: str) -> None:
-        super().__init__(filename)
         self.level = 1
         self.fp = open(filename + ".json", "w")
         self.has_item = False
@@ -93,6 +88,7 @@ class JSONWriter(GenericWriter):
     def __exit__(self, stype: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         self.level -= 1
         self.fp.write("{}]\n".format(self.ws()))
+        self.fp.close()
 
     def append(self, label: Any, value: Any, length: Optional[int] = None):
         if length is not None:
@@ -122,7 +118,6 @@ class MultipleWriter(GenericWriter):
     """
 
     def __init__(self, filename: str) -> None:
-        super().__init__(filename)
         self.writers: list[GenericWriter] = [JSONWriter(filename), TextWriter(filename)]
 
     def __enter__(self) -> Self:
@@ -133,7 +128,6 @@ class MultipleWriter(GenericWriter):
     def __exit__(self, stype: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         for w in self.writers:
             w.__exit__(stype, value, traceback)
-            w.fp.close()
 
     def open(self) -> None:
         for w in self.writers:
