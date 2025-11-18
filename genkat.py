@@ -56,7 +56,7 @@ def kat_hash(variant: ascon.AsconHashVariant|ascon.AsconCxofVariant = "Ascon-Has
                  "Ascon-XOF128": "HASH",  # or: XOF
                  "Ascon-CXOF128": "HASH"} # or: CXOF
     assert variant in hashtypes.keys()
-    
+
     filename = "LWC_{hashtype}_KAT_{hlenbits}".format(hashtype=hashtypes[variant], hlenbits=hlen*8)
 
     msg = kat_bytes(MAX_MESSAGE_LENGTH)
@@ -79,7 +79,7 @@ def kat_cxof(variant: Literal["Ascon-CXOF128"] = "Ascon-CXOF128") -> None:
     hlen = 32  # =CRYPTO_BYTES
     cxoftypes = {"Ascon-CXOF128": "CXOF"}
     assert variant in cxoftypes.keys()
-    
+
     filename = "LWC_{cxoftype}_KAT_{hlenbits}".format(cxoftype=cxoftypes[variant], hlenbits=hlen*8)
 
     msg    = kat_bytes(MAX_MESSAGE_LENGTH)

@@ -66,7 +66,7 @@ def ascon_hash(message: BytesLike, variant: AsconHashVariant|AsconCxofVariant = 
     if debug: printstate(S, "initialization:")
 
     # Customization
-    if customize: 
+    if customize:
         z_padding = to_bytes([0x01]) + zero_bytes(rate - (len(customization) % rate) - 1)
         z_length = int_to_bytes(len(customization)*8, 8)
         z_padded = z_length + customization + z_padding
@@ -174,7 +174,7 @@ def ascon_mac(key: BytesLike, message: BytesLike, variant: AsconMacVariant = "As
 
 # === Ascon AEAD encryption and decryption ===
 
-def ascon_encrypt(key: BytesLike, nonce: BytesLike, associateddata: BytesLike, plaintext: BytesLike, variant: AsconAeadVariant = "Ascon-AEAD128") -> bytes: 
+def ascon_encrypt(key: BytesLike, nonce: BytesLike, associateddata: BytesLike, plaintext: BytesLike, variant: AsconAeadVariant = "Ascon-AEAD128") -> bytes:
     """
     Ascon encryption.
     key: a bytes object of size 16 (for Ascon-AEAD128; 128-bit security)
@@ -316,7 +316,7 @@ def ascon_process_plaintext(S: list[int], b: int, rate: int, plaintext: BytesLik
 
 def ascon_process_ciphertext(S: list[int], b: int, rate: int, ciphertext: BytesLike):
     """
-    Ascon ciphertext processing phase (during decryption) - internal helper function. 
+    Ascon ciphertext processing phase (during decryption) - internal helper function.
     S: Ascon state, a list of 5 64-bit integers
     b: number of intermediate rounds for permutation
     rate: block size in bytes (16 for Ascon-AEAD128)
@@ -461,7 +461,7 @@ def demo_aead(variant: AsconAeadVariant = "Ascon-AEAD128") -> None:
     # choose a cryptographically strong random key and a nonce that never repeats for the same key:
     key   = get_random_bytes(16)  # zero_bytes(16)
     nonce = get_random_bytes(16)  # zero_bytes(16)
-    
+
     associateddata = b"ASCON"
     plaintext      = b"ascon"
 
@@ -469,14 +469,14 @@ def demo_aead(variant: AsconAeadVariant = "Ascon-AEAD128") -> None:
     receivedplaintext = ascon_decrypt(key, nonce, associateddata, ciphertext, variant)
 
     if receivedplaintext is None: print("verification failed!")
-        
-    demo_print([("key", key), 
-                ("nonce", nonce), 
-                ("plaintext", plaintext), 
-                ("ass.data", associateddata), 
-                ("ciphertext", ciphertext[:-16]), 
-                ("tag", ciphertext[-16:]), 
-                ("received", receivedplaintext), 
+
+    demo_print([("key", key),
+                ("nonce", nonce),
+                ("plaintext", plaintext),
+                ("ass.data", associateddata),
+                ("ciphertext", ciphertext[:-16]),
+                ("tag", ciphertext[-16:]),
+                ("received", receivedplaintext),
                ])
 
 def demo_hash(variant: AsconHashVariant|AsconCxofVariant = "Ascon-Hash256", hashlength: int = 32) -> None:
