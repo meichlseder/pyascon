@@ -54,7 +54,7 @@ class TextWriter(GenericWriter):
             assert isinstance(value, bytes), "length can only be specified for value of type bytes"
             assert len(value) >= length
             value = value[:length].hex().upper()
-            
+
         self.fp.write("{} = {}\n".format(label, value))
 
     def open(self) -> None:
