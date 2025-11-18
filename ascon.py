@@ -419,23 +419,23 @@ def ff_bytes(n: int) -> bytes:
 
 def to_bytes(l: BytesLike|Iterable[int]) -> bytes:
     # where l is a list or bytearray or bytes
-    return bytes(bytearray(l))
+    return bytes(l)
 
 def bytes_to_int(bytes: BytesLike) -> int:
+    return int.from_bytes(bytes, 'little')
     return sum([bi << (i*8) for i, bi in enumerate(to_bytes(bytes))])
 
 def bytes_to_state(bytes: bytes) -> list[int]:
     return [bytes_to_int(bytes[8*w:8*(w+1)]) for w in range(5)]
 
 def int_to_bytes(integer: int, nbytes: int) -> bytes:
-    return to_bytes([(integer >> (i * 8)) % 256 for i in range(nbytes)])
+    return integer.to_bytes(nbytes, 'little')
 
 def rotr(val: int, r: int) -> int:
     return (val >> r) | ((val & (1<<r)-1) << (64-r))
 
 def bytes_to_hex(b: bytes) -> str:
     return b.hex()
-    #return "".join(x.encode('hex') for x in b)
 
 def printstate(S: list[int], description: str = "") -> None:
     print(" " + description)
