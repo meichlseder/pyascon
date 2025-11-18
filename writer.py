@@ -5,7 +5,7 @@ Writers for output test vectors in Text and JSON formats.
 """
 from __future__ import annotations
 
-from typing import Type, Any, Optional, Self
+from typing import Type, Optional, Self, overload, override
 from types import TracebackType
 from abc import ABC, abstractmethod
 
@@ -21,8 +21,16 @@ class GenericWriter(ABC):
     def __exit__(self, stype: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         pass
 
+    @overload
     @abstractmethod
-    def append(self, label: Any, value: Any, length: Optional[int] = None) -> None:
+    def append(self, label: str, value: bytes, length: Optional[int]) -> None: ...
+
+    @overload
+    @abstractmethod
+    def append(self, label: str, value: int, length: None) -> None: ...
+
+    @abstractmethod
+    def append(self, label: str, value: bytes|int, length: Optional[int] = None) -> None:
         pass
 
     @abstractmethod
@@ -48,14 +56,21 @@ class TextWriter(GenericWriter):
     def __exit__(self, stype: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         self.fp.close()
 
-    def append(self, label: Any, value: Any, length: Optional[int] = None) -> None:
+    @overload
+    def append(self, label: str, value: bytes, length: Optional[int] = None) -> None: ...
+    @overload
+    def append(self, label: str, value: int, length: None = None) -> None: ...
+    def append(self, label: str, value: bytes|int, length: Optional[int] = None) -> None:
         assert self.is_open, "cannot append if not open yet"
         if length is not None:
             assert isinstance(value, bytes), "length can only be specified for value of type bytes"
             assert len(value) >= length
-            value = value[:length].hex().upper()
+            value_fmt = value[:length].hex().upper()
+        else:
+            assert isinstance(value, int)
+            value_fmt = f"{value}"
 
-        self.fp.write("{} = {}\n".format(label, value))
+        self.fp.write("{} = {}\n".format(label, value_fmt))
 
     def open(self) -> None:
         assert not self.is_open, "cannot open twice"
@@ -90,13 +105,22 @@ class JSONWriter(GenericWriter):
         self.fp.write("{}]\n".format(self.ws()))
         self.fp.close()
 
-    def append(self, label: Any, value: Any, length: Optional[int] = None):
+    @overload
+    def append(self, label: str, value: bytes, length: Optional[int] = None) -> None: ...
+    @overload
+    def append(self, label: str, value: int, length: None=None) -> None: ...
+
+    @override
+    def append(self, label: str, value: bytes|int, length: Optional[int] = None):
         if length is not None:
             assert isinstance(value, bytes), "length can only be specified for value of type bytes"
             assert len(value) >= length
-            value = '"{}"'.format(value[:length].hex().upper())
+            value_fmt = '"{}"'.format(value[:length].hex().upper())
+        else:
+            assert isinstance(value, int)
+            value_fmt = f"{value}"
         self.fp.write('{}{}"{}": {}'.format(
-            self.comma(), self.ws(), label, value))
+            self.comma(), self.ws(), label, value_fmt))
         self.has_item = True
 
     def open(self) -> None:
@@ -133,9 +157,16 @@ class MultipleWriter(GenericWriter):
         for w in self.writers:
             w.open()
 
-    def append(self, label: Any, value: Any, length: Optional[int] = None) -> None:
+    @overload
+    def append(self, label: str, value: bytes, length: Optional[int] = None) -> None: ...
+    @overload
+    def append(self, label: str, value: int, length: None = None) -> None: ...
+
+    @override
+    def append(self, label: str, value: bytes|int, length: Optional[int] = None) -> None:
         for w in self.writers:
-            w.append(label, value, length)
+            if isinstance(value, bytes):
+                w.append(label, value, length)
 
     def close(self) -> None:
         for w in self.writers:
